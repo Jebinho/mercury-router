@@ -4,8 +4,26 @@ import type { EngineInterface, Register, TurnUsage } from 'claude-code'
 import type { Decision, Depth, Effort, LastTurn, Memory, Tier, Verdict, WorkClass } from '../types'
 import { answersFromChat, decisionPrompt, type ChoiceAnswer } from './decision'
 
-// OpenRouter Decisions API (System One schema), not the chat endpoint.
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
+// Chat completions endpoints that can host the decision model: the URL, the
+// model asked by default, the option holding the key, and the body fields the
+// provider needs on top of the messages.
+const PROVIDERS = {
+  openrouter: {
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    model: 'nvidia/nemotron-3.5-lightning:free',
+    keyOption: 'openrouterApiKey',
+    label: 'OpenRouter',
+    extra: { reasoning: { enabled: false }, response_format: { type: 'json_object' } },
+  },
+  nvidia: {
+    url: 'https://integrate.api.nvidia.com/v1/chat/completions',
+    model: 'minimaxai/minimax-m3.1-flash',
+    keyOption: 'nvidiaApiKey',
+    label: 'NVIDIA',
+    extra: { response_format: { type: 'json_object' } },
+  },
+} as const
+type Provider = keyof typeof PROVIDERS
 
 const MODELS: Record<Tier, string> = {
   haiku: 'claude-haiku-5-5',
@@ -283,11 +301,13 @@ function stateFor(prompt: string, prev: Decision | null, m: Memory): string {
 
 async function decide(
   $: EngineInterface,
+  provider: Provider,
   apiKey: string,
   routerModel: string,
   state: string,
 ): Promise<Verdict | undefined> {
-  const res = await $.http.fetch(OPENROUTER_URL, {
+  const p = PROVIDERS[provider]
+  const res = await $.http.fetch(p.url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -296,8 +316,7 @@ async function decide(
     },
     body: JSON.stringify({
       model: routerModel,
-      reasoning: { enabled: false },
-      response_format: { type: 'json_object' },
+      ...p.extra,
       temperature: 0,
       max_tokens: 600,
       messages: [
@@ -306,7 +325,7 @@ async function decide(
       ],
     }),
   })
-  if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${res.text.slice(0, 200)}`)
+  if (!res.ok) throw new Error(`${p.label} ${res.status}: ${res.text.slice(0, 200)}`)
   return parseVerdict(answersFromChat(JSON.parse(res.text)))
 }
 
@@ -340,8 +359,9 @@ function label(d: Decision): string {
 }
 
 export const register: Register = (on, options) => {
-  const apiKey = String(options.openrouterApiKey ?? '').trim()
-  const routerModel = String(options.routerModel ?? 'nvidia/nemotron-3.5-lightning:free')
+  const provider: Provider = options.routerProvider === 'nvidia' ? 'nvidia' : 'openrouter'
+  const apiKey = String(options[PROVIDERS[provider].keyOption] ?? '').trim()
+  const routerModel = String(options.routerModel || PROVIDERS[provider].model)
   const routeSubagents = options.routeSubagents === true
   const showBand = options.showBand !== false
   const showFooter = options.showFooter === true
@@ -375,7 +395,7 @@ export const register: Register = (on, options) => {
       argumentHint: 'on | off | status',
     })
     if (apiKey === '') {
-      $.ui.status('🧭 router: sem chave da OpenRouter · defina a opção openrouterApiKey do plugin')
+      $.ui.status(`🧭 router: sem chave da ${PROVIDERS[provider].label} · defina a opção ${PROVIDERS[provider].keyOption} do plugin`)
     }
     return next(e)
   })
@@ -417,7 +437,7 @@ export const register: Register = (on, options) => {
     if (!isContinuation && !isAck) {
       $.ui.status('🧭 escolhendo modelo…')
       try {
-        verdict = await decide($, apiKey, routerModel, stateFor(text, prev, m))
+        verdict = await decide($, provider, apiKey, routerModel, stateFor(text, prev, m))
       } catch (err) {
         $.ui.log(`mercury-router: ${err instanceof Error ? err.message : String(err)}`)
       }

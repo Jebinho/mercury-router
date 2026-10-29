@@ -117,11 +117,28 @@ test('asks about the work and routes deep reasoning to opus high', { options: KE
 
   expect(sent.length).toBe(1)
   expect(sent[0]?.url).toBe('https://openrouter.ai/api/v1/chat/completions')
-  const body = sent[0]?.body as { model: string; state: string; questions: Record<string, unknown> }
+  const body = sent[0]?.body as { model: string; messages: { role: string; content: string }[] }
   expect(body.model).toBe('nvidia/nemotron-3.5-lightning:free')
-  expect(body.state).toContain('redesign the whole auth architecture')
-  expect(body.state).toContain('conversation_size: empty')
-  expect(Object.keys(body.questions)).toEqual(['work_class', 'depth', 'needs_verification'])
+  const [system, user] = body.messages
+  expect(system?.role).toBe('system')
+  for (const question of ['work_class', 'depth', 'needs_verification']) expect(system?.content).toContain(question)
+  expect(user?.content).toContain('redesign the whole auth architecture')
+  expect(user?.content).toContain('conversation_size: empty')
+  expect(seen).toEqual([{ model: 'claude-opus-5-5', effort: 'high' }])
+})
+
+test('the nvidia provider asks NIM with its own key and default model', { options: { routerProvider: 'nvidia', nvidiaApiKey: 'nvapi-test' } }, async ($, on) => {
+  const seen: Seen[] = []
+  const sent: Sent[] = []
+  setup(on)
+  routerAnswers(on, [answers({ work: 'deep_reasoning', depth: 'substantial' })], sent)
+  bottomStep(on, seen)
+
+  await $.prompt.submit(typed('redesign the whole auth architecture'))
+  await step($)
+
+  expect(sent[0]?.url).toBe('https://integrate.api.nvidia.com/v1/chat/completions')
+  expect((sent[0]?.body as { model: string }).model).toBe('minimaxai/minimax-m3.1-flash')
   expect(seen).toEqual([{ model: 'claude-opus-5-5', effort: 'high' }])
 })
 

@@ -67,7 +67,8 @@ export function answersFromChat(raw: unknown): { answers: Record<string, ChoiceA
   if (typeof content !== 'string') return undefined
   let parsed: unknown
   try {
-    parsed = JSON.parse(content)
+    // Models without a JSON mode sometimes wrap the object in a code fence or a sentence.
+    parsed = JSON.parse(content.slice(content.indexOf('{'), content.lastIndexOf('}') + 1))
   } catch {
     return undefined
   }

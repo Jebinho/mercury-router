@@ -1,7 +1,7 @@
 # mercury-router
 
 Mod para o Claude Code que escolhe o **modelo** (Haiku, Sonnet ou Opus) e o **effort** de cada prompt.
-Para isso ele pergunta a um modelo gratuito da **OpenRouter** (padrão: `nvidia/nemotron-3.5-lightning:free`) que tipo de trabalho o prompt é, e traduz a resposta em modelo + effort.
+Para isso ele pergunta a um modelo gratuito, na **OpenRouter** (padrão: `nvidia/nemotron-3.5-lightning:free`) ou na **NVIDIA NIM** (`minimaxai/minimax-m3.1-flash`), que tipo de trabalho o prompt é, e traduz a resposta em modelo + effort.
 
 Ele foi desenhado para não desperdiçar o *prompt cache*: cada modelo tem o seu próprio cache, então trocar de modelo no meio de uma conversa longa costuma sair mais caro do que ficar. Por isso, com o cache quente, ele prefere **manter o modelo e baixar o effort**, e só troca de modelo no começo da conversa, depois que o cache expira, ou quando a tarefa realmente pede.
 
@@ -18,7 +18,7 @@ Uma faixa acima da caixa de prompt mostra o que está respondendo:
 
 ## Privacidade
 
-Para decidir, **o texto de cada prompt que você digita é enviado à OpenRouter** (até 12.000 caracteres), junto com um resumo do estado da conversa (tamanho, falhas recentes, tipo do turno anterior). Não vai o histórico da conversa, nem arquivos, nem as respostas do Claude. Não use o mod se isso não for aceitável para o seu trabalho.
+Para decidir, **o texto de cada prompt que você digita é enviado à OpenRouter (ou à NVIDIA, se esse for o provedor)** (até 12.000 caracteres), junto com um resumo do estado da conversa (tamanho, falhas recentes, tipo do turno anterior). Não vai o histórico da conversa, nem arquivos, nem as respostas do Claude. Não use o mod se isso não for aceitável para o seu trabalho.
 
 ## 1. Instalar
 
@@ -115,11 +115,21 @@ Mude com `/plugin configure mercury-router@pedro-mods` (cada mudança recarrega 
 | Opção | Padrão | Para quê |
 | --- | --- | --- |
 | `openrouterApiKey` | — | Chave da OpenRouter. Sem ela o mod não faz nada e o modelo da sessão responde. |
-| `routerModel` | `nvidia/nemotron-3.5-lightning:free` | Modelo gratuito da OpenRouter que classifica cada prompt. Precisa aceitar resposta em JSON. |
+| `routerProvider` | `openrouter` | Onde o modelo de decisão roda: `openrouter` ou `nvidia`. |
+| `nvidiaApiKey` | — | Chave da NVIDIA NIM (`nvapi-…`), usada quando `routerProvider` é `nvidia`. |
+| `routerModel` | vazio | Modelo que classifica cada prompt. Vazio usa o padrão do provedor: `nvidia/nemotron-3.5-lightning:free` na OpenRouter, `minimaxai/minimax-m3.1-flash` na NVIDIA. Precisa aceitar resposta em JSON. |
 | `routeSubagents` | `false` | Aplica a decisão também aos subagentes. |
 | `cacheTtl` | `auto` | Duração do prompt cache: `1h` em assinatura Claude, `5m` com chave de API ou provedor de nuvem. `auto` detecta pelo ambiente. |
 | `showBand` | `true` | Faixa acima da caixa de prompt. |
 | `showFooter` | `false` | Também escreve a linha sob cada resposta (no app desktop ela fica dobrada num "aviso do Claude Code"). |
+
+## Usar a NVIDIA NIM
+
+1. Crie uma chave em <https://build.nvidia.com> (começa com `nvapi-`).
+2. Coloque a chave em `nvidiaApiKey` e mude `routerProvider` para `nvidia`, com `/plugin configure mercury-router@pedro-mods`.
+3. Rode `/reload-plugins` e confira com `/router`.
+
+Nem todo modelo listado em `https://integrate.api.nvidia.com/v1/models` responde para a sua conta: muitos devolvem 404. O padrão, `minimaxai/minimax-m3.1-flash`, foi testado e acertou os quatro prompts de exemplo em 1 a 2 segundos. Confira os limites da camada gratuita na sua conta: o mod faz uma chamada por prompt.
 
 ## Como ele decide (resumo)
 

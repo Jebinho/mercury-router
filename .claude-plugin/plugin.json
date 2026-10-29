@@ -1,9 +1,11 @@
 {
   "name": "mercury-router",
-  "version": "0.4.0",
-  "description": "Asks Mercury Decide (OpenRouter Decisions API) what kind of work each prompt is, then picks the Claude model and effort, keeping the prompt cache warm.",
-  "author": { "name": "Pedro Augusto" },
-  "types":"./types/index.d.ts",
+  "version": "0.5.0",
+  "description": "Asks a free chat model (OpenRouter or NVIDIA NIM) what kind of work each prompt is, then picks the Claude model and effort, keeping the prompt cache warm.",
+  "author": {
+    "name": "Pedro Augusto"
+  },
+  "types": "./types/index.d.ts",
   "userConfig": {
     "openrouterApiKey": {
       "type": "string",
@@ -12,11 +14,28 @@
       "sensitive": true,
       "required": false
     },
+    "nvidiaApiKey": {
+      "type": "string",
+      "title": "NVIDIA NIM API key",
+      "description": "Key (nvapi-…) used when the provider is nvidia, to call integrate.api.nvidia.com.",
+      "sensitive": true,
+      "required": false
+    },
+    "routerProvider": {
+      "type": "string",
+      "title": "Router provider",
+      "description": "Where the decision model runs: openrouter or nvidia (NVIDIA NIM).",
+      "options": [
+        "openrouter",
+        "nvidia"
+      ],
+      "default": "openrouter"
+    },
     "routerModel": {
       "type": "string",
       "title": "Router model",
-      "description": "OpenRouter Decisions model that makes the decision.",
-      "default": "nvidia/nemotron-3.5-lightning:free"
+      "description": "Model that makes the decision. Leave empty for the provider default.",
+      "required": false
     },
     "routeSubagents": {
       "type": "boolean",
@@ -28,7 +47,11 @@
       "type": "string",
       "title": "Prompt cache lifetime",
       "description": "How long the main conversation's prompt cache lives: 1h on a Claude subscription, 5m on an API key or a cloud provider. auto guesses from the environment.",
-      "options": ["auto", "5m", "1h"],
+      "options": [
+        "auto",
+        "5m",
+        "1h"
+      ],
       "default": "auto"
     },
     "showBand": {
