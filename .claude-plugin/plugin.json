@@ -1,0 +1,47 @@
+{
+  "name": "mercury-router",
+  "version": "0.3.0",
+  "description": "Asks Mercury Decide (OpenRouter Decisions API) what kind of work each prompt is, then picks the Claude model and effort, keeping the prompt cache warm.",
+  "author": { "name": "Pedro Augusto" },
+  "types":"./types/index.d.ts",
+  "userConfig": {
+    "openrouterApiKey": {
+      "type": "string",
+      "title": "OpenRouter API key",
+      "description": "Key used to call the router model on openrouter.ai.",
+      "sensitive": true,
+      "required": false
+    },
+    "routerModel": {
+      "type": "string",
+      "title": "Router model",
+      "description": "OpenRouter Decisions model that makes the decision.",
+      "default": "inception/mercury-decide:free"
+    },
+    "routeSubagents": {
+      "type": "boolean",
+      "title": "Route subagents too",
+      "description": "Also apply the decision to subagent requests.",
+      "default": false
+    },
+    "cacheTtl": {
+      "type": "string",
+      "title": "Prompt cache lifetime",
+      "description": "How long the main conversation's prompt cache lives: 1h on a Claude subscription, 5m on an API key or a cloud provider. auto guesses from the environment.",
+      "options": ["auto", "5m", "1h"],
+      "default": "auto"
+    },
+    "showBand": {
+      "type": "boolean",
+      "title": "Show the model above the prompt",
+      "description": "Keeps a line above the prompt box naming the model, effort and cache hit rate of the running or last turn.",
+      "default": true
+    },
+    "showFooter": {
+      "type": "boolean",
+      "title": "Show the model under each answer",
+      "description": "Also adds that line under each answer (the desktop app folds it into a notice).",
+      "default": false
+    }
+  }
+}

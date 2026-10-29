@@ -1,0 +1,6 @@
+{
+  "name": "pedro-mods",
+  "owner": { "name": "Pedro Augusto" },
+  "description": "Pedro's local Claude Code mods.",
+  "plugins": [{ "name": "mercury-router", "source": "./" }]
+}
