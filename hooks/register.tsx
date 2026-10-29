@@ -2,9 +2,10 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, TurnUsage } from 'claude-code'
 
 import type { Decision, Depth, Effort, LastTurn, Memory, Tier, Verdict, WorkClass } from '../types'
+import { answersFromChat, decisionPrompt, type ChoiceAnswer } from './decision'
 
 // OpenRouter Decisions API (System One schema), not the chat endpoint.
-const OPENROUTER_URL = 'https://openrouter.ai/api/alpha/decisions'
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 const MODELS: Record<Tier, string> = {
   haiku: 'claude-haiku-5-5',
@@ -102,51 +103,6 @@ const memory = atom({ plugin: 'mercury-router', key: 'memory' } as const, {
 const sentEffort = atom({ plugin: 'mercury-router', key: 'sentEffort' } as const, null)
 const lastTurn = atom({ plugin: 'mercury-router', key: 'lastTurn' } as const, null)
 
-// The decision model is asked about the work, never about model names: it
-// knows nothing of tiers, and the code maps the answers to a model.
-const QUESTIONS = {
-  work_class: {
-    type: 'choice',
-    instructions:
-      'Judge the kind of engineering work that answering the user prompt will require from a coding agent working in a repository. Use previous_work and previous_prompt to resolve short or referential prompts.',
-    criteria: {
-      trivial_lookup:
-        'A greeting, an acknowledgement, a short question about a fact, the setup, a tool, or what was just done in this conversation, explaining a snippet, or a mechanical change such as a rename, typo fix, formatting, docstring or commit message, with an obvious correct result. Most short questions are this.',
-      routine_edit: 'A well-specified change confined to one file or one function, whose correctness is easy to check.',
-      multi_step_change:
-        'Work that spans several files or needs an iterative loop of running commands, builds or tests and fixing what they report.',
-      deep_reasoning:
-        'Diagnosis or design: an unexplained failure, concurrency, performance, security, data migration, architecture, a plan, or a goal stated vaguely enough that the agent must decide what to build.',
-      long_horizon: 'An extended autonomous effort expected to take many hours or to touch most of the repository.',
-      research_or_writing: 'Producing prose, documentation or analysis, with no code changes.',
-      continuation:
-        'The prompt asks the agent to go on with the work in previous_prompt: it approves a plan, says to proceed, retries or extends it. A reply that only acknowledges or thanks, asking for nothing, is trivial_lookup instead.',
-    },
-  },
-  depth: {
-    type: 'choice',
-    instructions:
-      'How much careful reasoning does the work in the user prompt require before the agent acts, given recent_tool_failures?',
-    criteria: {
-      minimal:
-        'The answer is direct; any competent engineer would answer or act immediately. Greetings, acknowledgements and short factual questions are always this.',
-      moderate: 'Some care is needed to pick the right place and approach, but the path is clear.',
-      substantial: 'The agent must investigate, compare approaches or verify assumptions before acting.',
-      extensive: 'The problem is hard, previous attempts failed, or a wrong move is costly.',
-    },
-  },
-  needs_verification: {
-    type: 'choice',
-    instructions:
-      'Does a correct answer to the user prompt depend on running code, tests or shell commands and checking their results, rather than on reading and writing alone?',
-    criteria: {
-      yes: 'The agent has to run something and react to its output.',
-      no: 'Reading files and writing an answer or an edit is enough.',
-    },
-  },
-} as const
-
-type ChoiceAnswer = { type?: string; choice?: string; confidence?: number }
 
 export function parseVerdict(raw: unknown): Verdict | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined
@@ -338,10 +294,20 @@ async function decide(
       'Content-Type': 'application/json',
       'X-Title': 'Claude Code mercury-router',
     },
-    body: JSON.stringify({ model: routerModel, state, questions: QUESTIONS }),
+    body: JSON.stringify({
+      model: routerModel,
+      reasoning: { enabled: false },
+      response_format: { type: 'json_object' },
+      temperature: 0,
+      max_tokens: 600,
+      messages: [
+        { role: 'system', content: decisionPrompt() },
+        { role: 'user', content: state },
+      ],
+    }),
   })
   if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${res.text.slice(0, 200)}`)
-  return parseVerdict(JSON.parse(res.text))
+  return parseVerdict(answersFromChat(JSON.parse(res.text)))
 }
 
 // `claude-opus-5-5` reads as `Opus 5.5`; a proxy's own names stay as they are.
@@ -375,7 +341,7 @@ function label(d: Decision): string {
 
 export const register: Register = (on, options) => {
   const apiKey = String(options.openrouterApiKey ?? '').trim()
-  const routerModel = String(options.routerModel ?? 'inception/mercury-decide:free')
+  const routerModel = String(options.routerModel ?? 'nvidia/nemotron-3.5-lightning:free')
   const routeSubagents = options.routeSubagents === true
   const showBand = options.showBand !== false
   const showFooter = options.showFooter === true

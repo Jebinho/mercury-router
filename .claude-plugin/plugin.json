@@ -1,6 +1,6 @@
 {
   "name": "mercury-router",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Asks Mercury Decide (OpenRouter Decisions API) what kind of work each prompt is, then picks the Claude model and effort, keeping the prompt cache warm.",
   "author": { "name": "Pedro Augusto" },
   "types":"./types/index.d.ts",
@@ -16,7 +16,7 @@
       "type": "string",
       "title": "Router model",
       "description": "OpenRouter Decisions model that makes the decision.",
-      "default": "inception/mercury-decide:free"
+      "default": "nvidia/nemotron-3.5-lightning:free"
     },
     "routeSubagents": {
       "type": "boolean",

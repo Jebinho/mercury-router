@@ -9,17 +9,18 @@ type Seen = { model?: string; effort?: unknown }
 type Sent = { url: string; body: unknown }
 type Verdict = { work: string; depth?: string; verify?: 'yes' | 'no'; confidence?: number }
 
-// A Decisions API response, as https://openrouter.ai/api/alpha/decisions answers.
+// A chat completion whose JSON reply classifies the prompt, as the decision model answers.
 function answers(v: Verdict) {
-  const confidence = v.confidence ?? 0.9
+  const content = {
+    work_class: v.work,
+    depth: v.depth ?? 'moderate',
+    needs_verification: v.verify ?? 'no',
+    confidence: v.confidence ?? 0.9,
+  }
   return {
-    model: 'inception/mercury-decide:free',
-    answers: {
-      work_class: { type: 'choice', choice: v.work, probabilities: { [v.work]: confidence }, confidence },
-      depth: { type: 'choice', choice: v.depth ?? 'moderate', confidence: 0.7 },
-      needs_verification: { type: 'choice', choice: v.verify ?? 'no', confidence: 0.8 },
-    },
-    usage: { input_tokens: 120, output_tokens: 0, cost: 0 },
+    model: 'nvidia/nemotron-3.5-lightning:free',
+    choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: JSON.stringify(content) } }],
+    usage: { prompt_tokens: 120, completion_tokens: 20 },
   }
 }
 
@@ -115,9 +116,9 @@ test('asks about the work and routes deep reasoning to opus high', { options: KE
   await step($)
 
   expect(sent.length).toBe(1)
-  expect(sent[0]?.url).toBe('https://openrouter.ai/api/alpha/decisions')
+  expect(sent[0]?.url).toBe('https://openrouter.ai/api/v1/chat/completions')
   const body = sent[0]?.body as { model: string; state: string; questions: Record<string, unknown> }
-  expect(body.model).toBe('inception/mercury-decide:free')
+  expect(body.model).toBe('nvidia/nemotron-3.5-lightning:free')
   expect(body.state).toContain('redesign the whole auth architecture')
   expect(body.state).toContain('conversation_size: empty')
   expect(Object.keys(body.questions)).toEqual(['work_class', 'depth', 'needs_verification'])

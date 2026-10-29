@@ -1,7 +1,7 @@
 # mercury-router
 
 Mod para o Claude Code que escolhe o **modelo** (Haiku, Sonnet ou Opus) e o **effort** de cada prompt.
-Para isso ele pergunta a um modelo barato, o **Mercury Decide**, pela API da **OpenRouter**, que tipo de trabalho o prompt é, e traduz a resposta em modelo + effort.
+Para isso ele pergunta a um modelo gratuito da **OpenRouter** (padrão: `nvidia/nemotron-3.5-lightning:free`) que tipo de trabalho o prompt é, e traduz a resposta em modelo + effort.
 
 Ele foi desenhado para não desperdiçar o *prompt cache*: cada modelo tem o seu próprio cache, então trocar de modelo no meio de uma conversa longa costuma sair mais caro do que ficar. Por isso, com o cache quente, ele prefere **manter o modelo e baixar o effort**, e só troca de modelo no começo da conversa, depois que o cache expira, ou quando a tarefa realmente pede.
 
@@ -14,7 +14,7 @@ Uma faixa acima da caixa de prompt mostra o que está respondendo:
 ## O que você precisa
 
 - Claude Code **2.1.299 ou mais novo** (o app desktop ou o CLI). Versões antigas não carregam mods.
-- Uma conta na OpenRouter e uma **chave de API** (passo 2). O modelo `inception/mercury-decide:free` é gratuito.
+- Uma conta na OpenRouter e uma **chave de API** (passo 2). O modelo padrão, `nvidia/nemotron-3.5-lightning:free`, é gratuito. Modelos gratuitos podem ter limite temporário no provedor; se isso acontecer, troque `routerModel` (veja as opções abaixo).
 
 ## Privacidade
 
@@ -94,7 +94,7 @@ No Claude Code:
 Deve responder algo como:
 
 ```
-mercury-router ligado · roteador inception/mercury-decide:free · chave ok · TTL do cache 60 min · …
+mercury-router ligado · roteador nvidia/nemotron-3.5-lightning:free · chave ok · TTL do cache 60 min · …
 ```
 
 Se aparecer **chave faltando**, a chave não foi gravada no plugin instalado: refaça o passo 3 e o `/reload-plugins`.
@@ -115,7 +115,7 @@ Mude com `/plugin configure mercury-router@pedro-mods` (cada mudança recarrega 
 | Opção | Padrão | Para quê |
 | --- | --- | --- |
 | `openrouterApiKey` | — | Chave da OpenRouter. Sem ela o mod não faz nada e o modelo da sessão responde. |
-| `routerModel` | `inception/mercury-decide:free` | Modelo de decisão na OpenRouter. |
+| `routerModel` | `nvidia/nemotron-3.5-lightning:free` | Modelo gratuito da OpenRouter que classifica cada prompt. Precisa aceitar resposta em JSON. |
 | `routeSubagents` | `false` | Aplica a decisão também aos subagentes. |
 | `cacheTtl` | `auto` | Duração do prompt cache: `1h` em assinatura Claude, `5m` com chave de API ou provedor de nuvem. `auto` detecta pelo ambiente. |
 | `showBand` | `true` | Faixa acima da caixa de prompt. |
